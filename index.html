@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Registrasi</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 300px;
+            position: relative;
+        }
+        input {
+            margin: 10px 0;
+            padding: 10px;
+            width: 100%;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 10px;
+            width: 100%;
+            border-radius: 5px;
+            display: none;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #error {
+            color: red;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        canvas {
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+        }
+        img {
+            max-width: 100%;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Form Registrasi</h2>
+        <input type="text" id="name" placeholder="Nama" required>
+        <input type="text" id="username" placeholder="Username" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <input type="tel" id="whatsapp" placeholder="No. WhatsApp" pattern="[0-9]{10,13}" required>
+        <input type="file" id="image" accept="image/jpeg" required>
+        <img id="preview" alt="Preview Image">
+        <canvas id="faceCanvas"></canvas>
+        <button id="registerButton" onclick="validateForm()">Daftar</button>
+        <p id="error"></p>
+    </div>
+
+    <script>
+        async function detectFace(imageElement) {
+            const model = await blazeface.load();
+            const predictions = await model.estimateFaces(imageElement, false);
+            return predictions;
+        }
+
+        document.getElementById("image").addEventListener("change", async function(event) {
+            const file = event.target.files[0];
+            if (file && file.type === "image/jpeg") {
+                const img = document.getElementById("preview");
+                img.src = URL.createObjectURL(file);
+                img.style.display = "block";
+                img.onload = async function() {
+                    const predictions = await detectFace(img);
+                    const registerButton = document.getElementById("registerButton");
+                    const errorElement = document.getElementById("error");
+                    const canvas = document.getElementById("faceCanvas");
+                    
+                    if (predictions.length > 0) {
+                        registerButton.style.display = "block";
+                        errorElement.textContent = "";
+                        
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext("2d");
+                        ctx.drawImage(img, 0, 0, img.width, img.height);
+                        ctx.strokeStyle = "red";
+                        ctx.lineWidth = 2;
+                        
+                        predictions.forEach(prediction => {
+                            const [x, y] = prediction.topLeft;
+                            const [x2, y2] = prediction.bottomRight;
+                            const width = x2 - x;
+                            const height = y2 - y;
+                            ctx.strokeRect(x, y, width, height);
+                            ctx.fillStyle = "red";
+                            ctx.font = "14px Arial";
+                            ctx.fillText(`Confidence: ${(prediction.probability[0] * 100).toFixed(2)}%`, x, y - 5);
+                        });
+                        
+                        canvas.style.display = "block";
+                    } else {
+                        registerButton.style.display = "none";
+                        errorElement.textContent = "Muka tidak terdeteksi, silahkan pakai gambar JPG lainnya!";
+                        canvas.style.display = "none";
+                    }
+                };
+            } else {
+                document.getElementById("error").textContent = "Harap unggah file gambar JPG.";
+            }
+        });
+
+        function validateForm() {
+            const name = document.getElementById("name").value;
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+            const whatsapp = document.getElementById("whatsapp").value;
+            const image = document.getElementById("image").files.length;
+            const errorElement = document.getElementById("error");
+            
+            if (!name || !username || !password || !whatsapp || image === 0) {
+                errorElement.textContent = "Semua kolom wajib diisi!";
+                return;
+            }
+
+            if (!/^[0-9]{10,13}$/.test(whatsapp)) {
+                errorElement.textContent = "Nomor WhatsApp harus terdiri dari 10-13 digit angka.";
+                return;
+            }
+
+            errorElement.style.color = "green";
+            errorElement.textContent = "Registrasi berhasil!";
+        }
+    </script>
+</body>
+</html>
